@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIXT P&E Connect — March 2026 · Live</title>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+<style>
+:root {
+  --orange:#FF5F00; --orange-dim:rgba(255,95,0,.12); --orange-b:rgba(255,95,0,.3);
+  --bg:#0D0D0D; --card:#171717; --elev:#1F1F1F; --panel:#242424;
+  --t1:#F5F5F5; --t2:#AAAAAA; --t3:#666666;
+  --green:#22C55E; --green-dim:rgba(34,197,94,.12); --green-b:rgba(34,197,94,.3);
+  --blue:#3B82F6; --blue-dim:rgba(59,130,246,.12); --blue-b:rgba(59,130,246,.3);
+  --gray:#6B7280; --gray-dim:rgba(107,114,128,.12); --gray-b:rgba(107,114,128,.3);
+  --red:#EF4444;
+  --r-sm:4px; --r-md:8px; --r-lg:14px; --pill:999px;
+  --font:-apple-system,'Helvetica Neue',Arial,sans-serif;
+  --sh:0 4px 24px rgba(0,0,0,.4);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--t1);font-family:var(--font);font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+
+/* ── NAV ── */
+nav{position:sticky;top:0;z-index:300;background:rgba(13,13,13,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--orange-b);height:54px;display:flex;align-items:center;padding:0 14px;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+.nav-brand{font-size:13px;font-weight:800;color:var(--orange);letter-spacing:.04em;margin-right:10px;flex-shrink:0;text-transform:uppercase}
+nav a{color:var(--t3);text-decoration:none;font-size:11px;font-weight:500;padding:4px 8px;border-radius:var(--r-sm);white-space:nowrap;transition:color .18s,background .18s;flex-shrink:0}
+nav a:hover{color:var(--t2);background:rgba(255,255,255,.05)}
+nav a.active{color:var(--orange);background:var(--orange-dim)}
+.nav-spacer{flex:1;min-width:8px}
+.nav-btn{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:5px 10px;border-radius:var(--r-sm);border:none;cursor:pointer;white-space:nowrap;transition:background .18s,color .18s;flex-shrink:0}
+#btn-edit{background:var(--orange-dim);color:var(--orange);border:1px solid var(--orange-b)}
+#btn-edit:hover,#btn-edit.active{background:var(--orange);color:#fff}
+
+/* ── STATUS PILL ── */
+.status-pill{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--pill);border:1px solid rgba(255,255,255,.08);background:var(--panel);color:var(--t3);flex-shrink:0;margin-left:4px}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--t3);flex-shrink:0;transition:background .3s}
+.status-dot.green{background:var(--green);box-shadow:0 0 6px var(--green)}
+.status-dot.red{background:var(--red)}
+.status-dot.orange{background:var(--orange);box-shadow:0 0 6px var(--orange);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+#status-text{max-width:90px;overflow:hidden;text-overflow:ellipsis}
+
+/* ── EDIT BANNER ── */
+#edit-banner{display:none;position:sticky;top:54px;z-index:200;background:linear-gradient(90deg,#2A1500,#1A0D00);border-bottom:1px solid var(--orange-b);padding:7px 20px;font-size:12px;color:var(--orange);text-align:center}
+#edit-banner.on{display:block}
+#edit-banner strong{font-weight:800}
+
+/* ── HERO ── */
+.hero{background:linear-gradient(135deg,#111 0%,#1a0800 50%,#111 100%);border-bottom:1px solid var(--orange-b);padding:48px 24px 40px;text-align:center}
+.hero-label{font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--orange);margin-bottom:12px}
+.hero h1{font-size:clamp(26px,4.5vw,44px);font-weight:800;color:var(--t1);line-height:1.15;margin-bottom:10px}
+.hero h1 span{color:var(--orange)}
+.hero-sub{font-size:14px;color:var(--t3)}
+.hero-live{display:inline-flex;align-items:center;gap:6px;background:var(--green-dim);border:1px solid var(--green-b);border-radius:var(--pill);padding:4px 12px;font-size:12px;font-weight:700;color:var(--green);margin-top:14px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 1.5s infinite}
+
+/* ── MAIN ── */
+main{max-width:980px;margin:0 auto;padding:28px 20px 80px}
+
+/* ── SECTION ── */
+section{background:var(--card);border-radius:var(--r-lg);border:1px solid rgba(255,255,255,.06);border-left:3px solid var(--orange);margin-bottom:22px;overflow:visible;box-shadow:var(--sh);opacity:0;transform:translateY(28px);transition:opacity .5s ease,transform .5s ease,border-left-color .3s}
+section.visible{opacity:1;transform:translateY(0)}
+section.being-edited{border-left-color:var(--green)}
+.section-header{background:var(--elev);padding:16px 22px 14px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border-radius:var(--r-lg) var(--r-lg) 0 0;position:relative}
+.section-num{font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--orange);text-transform:uppercase;margin-bottom:3px}
+.section-title{font-size:19px;font-weight:700;color:var(--t1);line-height:1.2}
+.section-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-top:2px}
+.presenter{font-size:12px;color:var(--t3);font-weight:500}
+.duration{font-size:11px;background:var(--orange-dim);color:var(--orange);border:1px solid var(--orange-b);padding:2px 8px;border-radius:var(--pill);font-weight:700}
+.section-body{padding:20px 22px}
+
+/* editing indicator per section */
+.edit-indicator{display:none;position:absolute;top:12px;right:14px;font-size:10px;font-weight:700;color:var(--green);background:var(--green-dim);border:1px solid var(--green-b);padding:2px 8px;border-radius:var(--pill)}
+section.being-edited .edit-indicator{display:block}
+
+/* ── TOOLBAR ── */
+.section-toolbar{display:none;align-items:center;gap:6px;padding:7px 22px;background:rgba(255,95,0,.05);border-bottom:1px solid rgba(255,95,0,.08);flex-wrap:wrap}
+body.editing .section-toolbar{display:flex}
+.tb-btn{font-size:11px;font-weight:700;padding:4px 10px;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,.1);background:var(--panel);color:var(--t2);cursor:pointer;transition:all .15s}
+.tb-btn:hover{background:rgba(255,255,255,.1);color:var(--t1)}
+.tb-btn.add{color:var(--green);border-color:var(--green-b);background:var(--green-dim)}
+.tb-btn.add:hover{background:var(--green);color:#fff}
+.tb-label{font-size:10px;color:var(--t3);flex:1;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:var(--pill);white-space:nowrap;border:1px solid transparent}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.badge-released{background:var(--green-dim);color:var(--green);border-color:var(--green-b)}.badge-released::before{background:var(--green);box-shadow:0 0 4px var(--green)}
+.badge-inprogress{background:var(--orange-dim);color:var(--orange);border-color:var(--orange-b)}.badge-inprogress::before{background:var(--orange);box-shadow:0 0 4px var(--orange)}
+.badge-coming{background:var(--blue-dim);color:var(--blue);border-color:var(--blue-b)}.badge-coming::before{background:var(--blue)}
+.badge-planning{background:var(--gray-dim);color:var(--gray);border-color:var(--gray-b)}.badge-planning::before{background:var(--gray)}
+.badge-wrapped{background:var(--blue-dim);color:#60A5FA;border-color:rgba(96,165,250,.3)}.badge-wrapped::before{background:#60A5FA}
+body.editing .badge[data-cycle]{cursor:pointer}
+body.editing .badge[data-cycle]::after{content:'↻';margin-left:3px;font-size:9px;opacity:.7}
+
+/* ── ITEMS ── */
+.item-list{display:flex;flex-direction:column}
+.item-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);position:relative}
+.item-row:last-child{border-bottom:none;padding-bottom:0}
+.item-left{display:flex;align-items:flex-start;gap:9px;flex:1;min-width:0}
+.item-dot{width:5px;height:5px;border-radius:50%;background:var(--t3);margin-top:8px;flex-shrink:0}
+.item-dot.green{background:var(--green)}.item-dot.orange{background:var(--orange)}.item-dot.blue{background:var(--blue)}
+.item-content{flex:1;min-width:0}
+.item-title{font-size:14px;color:var(--t1);font-weight:500;line-height:1.4}
+.item-sub{font-size:12px;color:var(--t3);margin-top:2px;line-height:1.4}
+.item-right{flex-shrink:0;padding-top:2px}
+.del-btn{display:none;position:absolute;right:-6px;top:4px;width:18px;height:18px;border-radius:50%;background:var(--red);border:none;color:#fff;font-size:11px;font-weight:700;cursor:pointer;align-items:center;justify-content:center;line-height:1;z-index:10;transition:transform .15s}
+body.editing .del-btn{display:flex}
+.del-btn:hover{transform:scale(1.2)}
+
+/* ── CE highlight ── */
+body.editing [contenteditable]{outline:1px dashed rgba(255,95,0,.35);border-radius:3px;padding:1px 3px;cursor:text;min-width:20px;display:inline-block}
+body.editing [contenteditable]:focus{outline:2px solid var(--orange);background:rgba(255,95,0,.06)}
+
+/* ── LAYOUT HELPERS ── */
+.divider{border:none;border-top:1px solid rgba(255,255,255,.05);margin:16px 0}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.col-panel{background:var(--elev);border:1px solid rgba(255,255,255,.05);border-radius:var(--r-md);padding:14px}
+.status-section-label{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin:16px 0 8px;display:flex;align-items:center;gap:8px}
+.status-section-label::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.05)}
+.content-group{margin-bottom:18px}.content-group:last-child{margin-bottom:0}
+.group-label{display:flex;align-items:center;gap:8px;margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid rgba(255,255,255,.05)}
+.group-label h3{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--t3)}
+
+/* ── METRICS ── */
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+.metric-card{background:var(--panel);border:1px solid rgba(255,255,255,.07);border-radius:var(--r-md);padding:14px;text-align:center}
+.metric-value{display:block;font-size:26px;font-weight:800;line-height:1;margin-bottom:5px}
+.metric-value.green{color:var(--green)}.metric-value.orange{color:var(--orange)}.metric-value.gray{color:var(--gray)}
+.metric-label{font-size:11px;color:var(--t3);line-height:1.3}
+
+/* ── CALLOUT ── */
+.callout{border-radius:var(--r-md);padding:12px 15px;margin:12px 0;border:1px solid transparent}
+.callout.blue{background:rgba(59,130,246,.07);border-color:var(--blue-b);border-left:3px solid var(--blue)}
+.callout.orange{background:var(--orange-dim);border-color:var(--orange-b);border-left:3px solid var(--orange)}
+.callout.green{background:var(--green-dim);border-color:var(--green-b);border-left:3px solid var(--green)}
+.callout-title{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px}
+.callout.blue .callout-title{color:var(--blue)}.callout.orange .callout-title{color:var(--orange)}.callout.green .callout-title{color:var(--green)}
+.callout-body{font-size:13px;color:var(--t2)}
+
+/* ── ANNOUNCEMENTS ── */
+.announcement-list{display:flex;flex-direction:column;gap:10px}
+.announcement{background:var(--elev);border:1px solid rgba(255,255,255,.05);border-radius:var(--r-md);padding:12px 14px;display:flex;gap:11px;align-items:flex-start;position:relative}
+.ann-icon{font-size:20px;flex-shrink:0;line-height:1;margin-top:1px}
+.ann-title{font-size:14px;font-weight:600;color:var(--t1);margin-bottom:2px}
+.ann-detail{font-size:12px;color:var(--t3)}
+
+/* ── HIGHLIGHT PANEL ── */
+.highlight-panel{background:linear-gradient(135deg,rgba(255,95,0,.1),rgba(255,95,0,.04));border:1px solid var(--orange-b);border-radius:var(--r-md);padding:18px;margin-bottom:14px;position:relative;overflow:hidden}
+.highlight-panel::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--orange)}
+.hp-title{font-size:17px;font-weight:800;color:var(--orange);margin-bottom:4px}
+.hp-sub{font-size:13px;color:var(--t2);line-height:1.5}
+
+/* ── QUESTIONS ── */
+.question-list{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+.question-bubble{background:var(--panel);border:1px solid rgba(255,255,255,.06);border-radius:var(--r-md);padding:9px 13px;font-size:13px;color:var(--t2);display:flex;gap:9px;align-items:flex-start;position:relative}
+.q-icon{color:var(--blue);font-size:13px;flex-shrink:0;margin-top:1px}
+
+/* ── Q&A ── */
+.qa-section{text-align:center;padding:36px 24px}
+.qa-emoji{font-size:52px;line-height:1;margin-bottom:14px}
+.qa-title{font-size:26px;font-weight:800;color:var(--t1);margin-bottom:7px}
+.qa-sub{font-size:14px;color:var(--t3);margin-bottom:24px}
+.qa-link{display:inline-block;background:var(--orange);color:#fff;font-size:15px;font-weight:700;padding:13px 40px;border-radius:var(--r-md);text-decoration:none;letter-spacing:.03em;transition:background .18s,transform .15s,box-shadow .18s;box-shadow:0 4px 20px rgba(255,95,0,.3)}
+.qa-link:hover{background:#e55500;transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,95,0,.4)}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--panel);border:1px solid rgba(255,255,255,.1);color:var(--t1);font-size:13px;font-weight:500;padding:10px 20px;border-radius:var(--r-md);box-shadow:0 8px 32px rgba(0,0,0,.5);opacity:0;transition:opacity .25s,transform .25s;z-index:9999;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── FOOTER ── */
+footer{text-align:center;padding:28px 20px;font-size:12px;color:var(--t3);border-top:1px solid rgba(255,255,255,.05);max-width:980px;margin:0 auto}
+footer strong{color:var(--orange)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:640px){
+  .two-col,.three-col{grid-template-columns:1fr}
+  .section-header{flex-direction:column;gap:6px}
+  .section-meta{align-items:flex-start;flex-direction:row;flex-wrap:wrap}
+  main{padding:16px 12px 60px}
+  .hero{padding:32px 14px 28px}
+  nav a{font-size:10px;padding:3px 6px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-brand">SIXT P&amp;E</span>
+  <a href="#s1">Updates</a>
+  <a href="#s2">Newsletter</a>
+  <a href="#s3">SORT</a>
+  <a href="#s4">BATS</a>
+  <a href="#s5">DEL/COL</a>
+  <a href="#s6">Core</a>
+  <a href="#s7">TPRA</a>
+  <a href="#s8">RESP</a>
+  <a href="#s9">AI</a>
+  <a href="#s10">Q&amp;A</a>
+  <div class="nav-spacer"></div>
+  <button class="nav-btn" id="btn-edit">✏️ Edit</button>
+  <div class="status-pill">
+    <span class="status-dot orange" id="status-dot"></span>
+    <span id="status-text">Connecting…</span>
+  </div>
+  <div class="status-pill">
+    <span>👥</span>
+    <span id="online-count">—</span>
+  </div>
+</nav>
+
+<div id="edit-banner">
+  ✏️ <strong>Edit Mode ON</strong> — click any text to edit &nbsp;·&nbsp; use <strong>+ Add</strong> buttons to add items &nbsp;·&nbsp; click <strong>🔴 ×</strong> to delete &nbsp;·&nbsp; click a <strong>badge ↻</strong> to change status &nbsp;·&nbsp; <strong>changes sync live to everyone</strong>
+</div>
+
+<div class="hero">
+  <div class="hero-label">Monthly Connect — March 2026</div>
+  <h1>Product &amp; <span>Engineering</span> Connect</h1>
+  <div class="hero-sub">10 updates &nbsp;·&nbsp; 7 teams &nbsp;·&nbsp; ~38 minutes</div>
+  <div class="hero-live"><span class="live-dot"></span> Live — edits sync to everyone in real time</div>
+</div>
+
+<main>
+
+<!-- S1 -->
+<section id="s1">
+  <div class="section-toolbar">
+    <span class="tb-label">01 — Updates &amp; News</span>
+    <button class="tb-btn add" onclick="addAnnouncement('ann-s1')">+ Add Announcement</button>
+  </div>
+  <div class="section-header">
+    <div><div class="section-num">01</div><div class="section-title" contenteditable="false">Updates &amp; News</div></div>
+    <div class="section-meta"><span class="presenter" contenteditable="false">Julien / Julian</span><span class="duration" contenteditable="false">15 min</span></div>
+    <span class="edit-indicator">✏️ being edited</span>
+  </div>
+  <div class="section-body">
+    <div class="announcement-list" id="ann-s1">
+      <div class="announcement"><button class="del-btn" onclick="delEl(this,'announcement')">×</button><div class="ann-icon" contenteditable="false">👋</div><div><div class="ann-title" contenteditable="false">Tarek joined the team</div><div class="ann-detail" contenteditable="false">Director, Product Analytics — welcome aboard!</div></div></div>
+      <div class="announcement"><button class="del-btn" onclick="delEl(this,'announcement')">×</button><div class="ann-icon" contenteditable="false">📅</div><div><div class="ann-title" contenteditable="false">April 1st role changes</div><div class="ann-detail" contenteditable="false">Jenni → PO CNBE API &nbsp;·&nbsp; Angela (Anxhela Gjikopulli) → PO CART</div></div></div>
+      <div class="announcement"><button class="del-btn" onclick="delEl(this,'announcement')">×</button><div class="ann-icon" contenteditable="false">🤖</div><div><div class="ann-title" contenteditable="false">Vibe Coding — First Pilot with Netflix 2.0</div><div class="ann-detail" contenteditable="false">Expectation alignment and pilot launch underway</div></div></div>
+      <div class="announcement"><button class="del-btn" onclick="delEl(this,'announcement')">×</button><div class="ann-icon" contenteditable="false">📄</div><div><div class="ann-title" contenteditable="false">1-Pager Process</div><div class="ann-detail" contenteditable="false">Estimations starting — process formally kicking off</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- S2 -->
+<section id="s2">
+  <div class="section-toolbar">
+    <span class="tb-label">02 — Newsletter</span>
+    <button class="tb-btn add" onclick="addItem('wrap-list','wrapped')">+ Wrapping Up</button>
+    <button class="tb-btn add" onclick="addItem('run-list','inprogress')">+ Running Test</button>
+  </div>
+  <div class="section-header">
+    <div><div class="section-num">02</div><div class="section-title" contenteditable="false">🗞️ Monthly NEWETsletter 🌊</div></div>
+    <div class="section-meta"><span class="duration" contenteditable="false">A/B Tests Status</span></div>
+    <span class="edit-indicator">✏️ being edited</span>
+  </div>
+  <div class="section-body">
+    <div class="status-section-label"><span class="badge badge-wrapped" data-cycle onclick="cycleBadge(this)">Wrapping Up — To Be Released</span></div>
+    <div class="item-list" id="wrap-list">
+      <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot blue"></div><div class="item-content"><div class="item-title" contenteditable="false">🔥 Personalization + New Primary Content Designs</div><div class="item-sub" contenteditable="false">A/B test in SEA traffic — new primary content design with personalization logics based on user keywords</div></div></div><div class="item-right"><span class="badge badge-wrapped" data-cycle onclick="cycleBadge(this)">To Release</span></div></div>
+      <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot blue"></div><div class="item-content"><div class="item-title" contenteditable="false">New Franchise Domains on Internal</div><div class="item-sub" contenteditable="false">sixt.ma &nbsp;·&nbsp; sixt.com.kw &nbsp;·&nbsp; sixt.com.my</div></div></div><div class="item-right"><span class="badge badge-wrapped" data-cycle onclick="cycleBadge(this)">To Release</span></div></div>
+      <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot blue"></div><div class="item-content"><div class="item-title" contenteditable="false">Split Test / SEO: New Internal Linking Element</div><div class="item-sub" contenteditable="false">Testing in location LP — measuring ranking impact</div></div></div><div class="item-right"><span class="badge badge-wrapped" data-cycle onclick="cycleBadge(this)">To Release</span></div></div>
+    </div>
+    <hr class="divider">
+    <div class="status-section-label"><span class="badge badge-inprogress" data-cycle onclick="cycleBadge(this)">Running A/B Tests</span></div>
+    <div class="item-list" id="run-list">
+      <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">IBE Promo Banner A/B Test 🛑</div><div class="item-sub" contenteditable="false">Not conclusive — trend was positive. Iteration test running ⬇️</div></div></div><div class="item-right"><span class="badge badge-inprogress" data-cycle onclick="cycleBadge(this)">Iterating</span></div></div>
+      <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">AlertBanner + Promo Banner A/B Test 🏃</div><div class="item-sub" contenteditable="false">A/B/C running — Loyalty vs Discounts · UI comparison</div></div></div><div class="item-right"><span class="badge badge-inprogress" data-cycle onclick="cycleBadge(this)">A/B/C Live</span></div></div>
+      <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">Exit Banner A/B Test 🟢</div><div class="item-sub" contenteditable="false">Rolled out 10% discount to 100% of traffic</div></div></div><div class="item-right"><span class="badge badge-released" data-cycle onclick="cycleBadge(this)">Rolled Out</span></div></div>
+      <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">Car-Categories Template Revamp 😷</div><div class="item-sub" contenteditable="false">SRM ongoing — Statsig analyzing the situation</div></div></div><div class="item-right"><span class="badge badge-inprogress" data-cycle onclick="cycleBadge(this)">SRM</span></div></div>
+    </div>
+    <div class="callout green" style="margin-top:14px"><div class="callout-title">🤝 AI Project — Collab with SORT</div><div class="callout-body" contenteditable="false">AI-powered features integration in progress 💪</div></div>
+    <div class="callout orange" style="margin-top:8px"><div class="callout-title">➕ Loyalty Rollout EU</div><div class="callout-body" contenteditable="false">Switching to new URL /sixt-one/ and LP creation</div></div>
+  </div>
+</section>
+
+<!-- S3 -->
+<section id="s3">
+  <div class="section-toolbar">
+    <span class="tb-label">03 — SORT</span>
+    <button class="tb-btn add" onclick="addItem('sort-r','released')">+ Released</button>
+    <button class="tb-btn add" onclick="addItem('sort-i','inprogress')">+ In Progress</button>
+    <button class="tb-btn add" onclick="addItem('sort-c','coming')">+ To Come</button>
+  </div>
+  <div class="section-header">
+    <div><div class="section-num">03</div><div class="section-title" contenteditable="false">🏎️ Keep Calm and SORT-On!</div></div>
+    <div class="section-meta"><span class="presenter" contenteditable="false">Marta</span><span class="duration" contenteditable="false">5 min</span></div>
+    <span class="edit-indicator">✏️ being edited</span>
+  </div>
+  <div class="section-body">
+    <div class="content-group">
+      <div class="group-label"><h3>Released</h3><span class="badge badge-released">Done</span></div>
+      <div class="item-list" id="sort-r">
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">AB Test: AI Filters</div><div class="item-sub" contenteditable="false">Live for 20% traffic — CH, AT, BLX</div></div></div><div class="item-right"><span class="badge badge-released" data-cycle onclick="cycleBadge(this)">Live 20%</span></div></div>
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">Netflix 2.0 AB Test</div><div class="item-sub" contenteditable="false">Live for 10% of .com traffic</div></div></div><div class="item-right"><span class="badge badge-released" data-cycle onclick="cycleBadge(this)">Live 10%</span></div></div>
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">Manage Bookings</div><div class="item-sub" contenteditable="false">View/edit booking function within all IBEs</div></div></div></div>
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">AB(CD) Tests: Member Rates</div><div class="item-sub" contenteditable="false">Top of offerlist banner &amp; intile nudge · Loyalty Campaign Tile</div></div></div></div>
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">Offerlist Campaigns</div><div class="item-sub" contenteditable="false">Migrated from Optimizely to Directus</div></div></div></div>
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">AB Test: Primary Content</div><div class="item-sub" contenteditable="false">WET team support, IBE</div></div></div></div>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="content-group">
+      <div class="group-label"><h3>In Progress</h3><span class="badge badge-inprogress">Running</span></div>
+      <div class="item-list" id="sort-i">
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">AB Test: Booking AI Agent</div><div class="item-sub" contenteditable="false">MVP: Chat until Review &amp; Book</div></div></div></div>
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">AB Test: Elite Vehicle Highlighting 2</div><div class="item-sub" contenteditable="false">Highlighting Special and Sports &amp; Luxury cars; 4WD and 5+2 seaters</div></div></div></div>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="content-group">
+      <div class="group-label"><h3>To Come</h3><span class="badge badge-coming">Planned</span></div>
+      <div class="item-list" id="sort-c">
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot blue"></div><div class="item-content"><div class="item-title" contenteditable="false">AB Test: Offerlist Campaign Tile</div><div class="item-sub" contenteditable="false">Measure conversion and rental revenue impact</div></div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S4 -->
+<section id="s4">
+  <div class="section-toolbar">
+    <span class="tb-label">04 — BATS App</span>
+    <button class="tb-btn add" onclick="addItem('bats-r','released')">+ Released</button>
+    <button class="tb-btn add" onclick="addItem('bats-ab','inprogress')">+ Running A/B</button>
+    <button class="tb-btn add" onclick="addItem('bats-i','inprogress')">+ In Progress</button>
+    <button class="tb-btn add" onclick="addItem('bats-n','coming')">+ Next</button>
+  </div>
+  <div class="section-header">
+    <div><div class="section-num">04</div><div class="section-title" contenteditable="false">BATS App Updates</div></div>
+    <div class="section-meta"><span class="presenter" contenteditable="false">Ana</span><span class="duration" contenteditable="false">5 min</span></div>
+    <span class="edit-indicator">✏️ being edited</span>
+  </div>
+  <div class="section-body">
+    <div class="content-group">
+      <div class="group-label"><h3>Released</h3><span class="badge badge-released">Done</span></div>
+      <div class="callout green"><div class="callout-title">🏆 Positive Reinforcement — Rolled Out (iOS)</div><div class="metric-grid"><div class="metric-card"><span class="metric-value green" contenteditable="false">+2.55%</span><span class="metric-label" contenteditable="false">Total Reservations (iOS)</span></div><div class="metric-card"><span class="metric-value green" contenteditable="false">+2.12%</span><span class="metric-label" contenteditable="false">Rental Revenue per Visitor (iOS)</span></div></div></div>
+      <div class="item-list" id="bats-r" style="margin-top:10px">
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">Loyalty Push — US Market</div></div></div><div class="item-right"><span class="badge badge-released" data-cycle onclick="cycleBadge(this)">Released</span></div></div>
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">Removing All Keybox References</div></div></div><div class="item-right"><span class="badge badge-released" data-cycle onclick="cycleBadge(this)">Released</span></div></div>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="content-group">
+      <div class="group-label"><h3>Running A/B Tests</h3><span class="badge badge-inprogress">Live</span></div>
+      <div class="item-list" id="bats-ab">
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">DEL/COL for B2C — iOS &amp; Android (A/A)</div></div></div></div>
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">Payment Switcher in Review&amp;Book — iOS (A/B)</div></div></div></div>
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">Frictionless V1 — iOS (A/B)</div></div></div></div>
+        <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">Highlight Previous Booked Items — iOS (A/B)</div></div></div></div>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="two-col">
+      <div class="col-panel">
+        <div class="group-label"><h3>In Progress</h3><span class="badge badge-inprogress">Building</span></div>
+        <div class="item-list" id="bats-i">
+          <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">Home Revamp — Android/iOS (A/B)</div></div></div></div>
+          <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">Age Filters — Android/iOS (A/B)</div></div></div></div>
+        </div>
+      </div>
+      <div class="col-panel">
+        <div class="group-label"><h3>Next</h3><span class="badge badge-coming">Planned</span></div>
+        <div class="item-list" id="bats-n">
+          <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot blue"></div><div class="item-content"><div class="item-title" contenteditable="false">Hot Offers — iOS &amp; Android (A/B)</div></div></div></div>
+          <div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot blue"></div><div class="item-content"><div class="item-title" contenteditable="false">Elite Vehicle Highlighting — iOS &amp; Android (A/B)</div></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S5 -->
+<section id="s5">
+  <div class="section-toolbar">
+    <span class="tb-label">05 — DEL/COL UserTesting</span>
+    <button class="tb-btn add" onclick="addQuestion('q-list')">+ Add Question</button>
+  </div>
+  <div class="section-header">
+    <div><div class="section-num">05</div><div class="section-title" contenteditable="false">👤 Prevalidate DEL/COL with UserTesting</div></div>
+    <div class="section-meta"><span class="presenter" contenteditable="false">Julia</span><span class="duration" contenteditable="false">3 min</span></div>
+    <span class="edit-indicator">✏️ being edited</span>
+  </div>
+  <div class="section-body">
+    <div class="two-col">
+      <div>
+        <div class="status-section-label">Research Questions</div>
+        <div class="question-list" id="q-list">
+          <div class="question-bubble"><button class="del-btn" onclick="delEl(this,'question-bubble')">×</button><span class="q-icon">?</span><span contenteditable="false">Can users easily complete tasks with the prototype?</span></div>
+          <div class="question-bubble"><button class="del-btn" onclick="delEl(this,'question-bubble')">×</button><span class="q-icon">?</span><span contenteditable="false">Do users understand the copy?</span></div>
+          <div class="question-bubble"><button class="del-btn" onclick="delEl(this,'question-bubble')">×</button><span class="q-icon">?</span><span contenteditable="false">What would they name the feature?</span></div>
+          <div class="question-bubble"><button class="del-btn" onclick="delEl(this,'question-bubble')">×</button><span class="q-icon">?</span><span contenteditable="false">Do users understand how the service works?</span></div>
+          <div class="question-bubble"><button class="del-btn" onclick="delEl(this,'question-bubble')">×</button><span class="q-icon">?</span><span contenteditable="false">Do they miss any information?</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="status-section-label">Results</div>
+        <div class="metric-grid" style="grid-template-columns:1fr 1fr;margin:0 0 12px">
+          <div class="metric-card"><span class="metric-value green" contenteditable="false">10/10</span><span class="metric-label" contenteditable="false">Completed booking with prototype</span></div>
+          <div class="metric-card"><span class="metric-value orange" contenteditable="false">45/60</span><span class="metric-label" contenteditable="false">Explained service in own words</span></div>
+        </div>
+        <div class="metric-grid" style="grid-template-columns:1fr;margin:0 0 12px">
+          <div class="metric-card"><span class="metric-value gray" contenteditable="false">21/60</span><span class="metric-label" contenteditable="false">Misunderstood Onboarding Screen 2</span></div>
+        </div>
+        <div class="callout blue"><div class="callout-title">Outcome</div><div class="callout-body" contenteditable="false">21/60 users believed the service was free — copy was reworked based on findings.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- S6 -->
+<section id="s6">
+  <div class="section-toolbar">
+    <span class="tb-label">06 — Core Booking</span>
+    <button class="tb-btn add" onclick="addItem('cb-a','released')">+ Achievement</button>
+    <button class="tb-btn add" onclick="addItem('cb-l','inprogress')">+ Ready for Launch</button>
+    <button class="tb-btn add" onclick="addItem('cb-p','coming')">+ Pipeline</button>
+  </div>
+  <div class="section-header">
+    <div><div class="section-num">06</div><div class="section-title" contenteditable="false">Core Booking Updates</div></div>
+    <div class="section-meta"><span class="presenter" contenteditable="false">Pierre</span><span class="duration" contenteditable="false">5 min</span></div>
+    <span class="edit-indicator">✏️ being edited</span>
+  </div>
+  <div class="section-body">
+    <div class="content-group"><div class="group-label"><h3>Achievements</h3><span class="badge badge-released">Done</span></div><div class="item-list" id="cb-a"><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">Web AI Filters (V1)</div></div></div></div><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">Cool Charge Names for EU Packages</div></div></div></div><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">Offerlist Campaigns in Directus</div></div></div></div></div></div>
+    <hr class="divider">
+    <div class="content-group"><div class="group-label"><h3>Ready for Launch</h3><span class="badge badge-inprogress">Soon</span></div><div class="item-list" id="cb-l"><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">App DELCOL (Delivery &amp; Collection)</div></div></div></div><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">Hot Offers &amp; Eye Catchers from Pricing</div></div></div></div><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">Guest User Booking for a Guest (booker_email)</div></div></div></div><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">Preview Loyalty Earnings</div></div></div></div></div></div>
+    <hr class="divider">
+    <div class="content-group"><div class="group-label"><h3>In the Pipeline</h3><span class="badge badge-coming">Planned</span></div><div class="item-list" id="cb-p"><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot blue"></div><div class="item-content"><div class="item-title" contenteditable="false">New Location Management Data for Branches</div></div></div></div><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot blue"></div><div class="item-content"><div class="item-title" contenteditable="false">Logged-in User Booking for a Guest</div></div></div></div></div></div>
+  </div>
+</section>
+
+<!-- S7 -->
+<section id="s7">
+  <div class="section-toolbar">
+    <span class="tb-label">07 — TPRA</span>
+    <button class="tb-btn add" onclick="addItem('tpra-a','released')">+ Achievement</button>
+    <button class="tb-btn add" onclick="addItem('tpra-i','inprogress')">+ In Progress</button>
+  </div>
+  <div class="section-header">
+    <div><div class="section-num">07</div><div class="section-title" contenteditable="false">TPRA Updates</div></div>
+    <div class="section-meta"><span class="presenter" contenteditable="false">Pierre</span><span class="duration" contenteditable="false">3 min</span></div>
+    <span class="edit-indicator">✏️ being edited</span>
+  </div>
+  <div class="section-body">
+    <div class="two-col">
+      <div class="col-panel"><div class="group-label"><h3>Achievements</h3><span class="badge badge-released">Done</span></div><div class="item-list" id="tpra-a"><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">New Requirements for Keybox Pickup</div></div></div></div><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">Reporting to Catalonia Authorities</div><div class="item-sub" contenteditable="false">Reservations &amp; Rentals</div></div></div></div><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">Lynx Interface for Rental Information Management</div></div></div></div></div></div>
+      <div class="col-panel"><div class="group-label"><h3>In Progress</h3><span class="badge badge-inprogress">Running</span></div><div class="item-list" id="tpra-i"><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">Reporting to AENA</div><div class="item-sub" contenteditable="false">Spanish Airports authority</div></div></div></div><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">Improvement to Rental Info in Lynx</div></div></div></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- S8 -->
+<section id="s8">
+  <div class="section-toolbar">
+    <span class="tb-label">08 — RESP</span>
+    <button class="tb-btn add" onclick="addItem('resp-d','released')">+ Done</button>
+    <button class="tb-btn add" onclick="addItem('resp-i','inprogress')">+ In Progress</button>
+    <button class="tb-btn add" onclick="addItem('resp-p','planning')">+ Planning</button>
+  </div>
+  <div class="section-header">
+    <div><div class="section-num">08</div><div class="section-title" contenteditable="false">RESP Update</div></div>
+    <div class="section-meta"><span class="presenter" contenteditable="false">Stefan</span><span class="duration" contenteditable="false">3 min</span></div>
+    <span class="edit-indicator">✏️ being edited</span>
+  </div>
+  <div class="section-body">
+    <div class="three-col">
+      <div class="col-panel"><div class="group-label"><h3>Done</h3><span class="badge badge-released">✓</span></div><div class="item-list" id="resp-d"><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">Web/App new backend flow on Stage</div></div></div></div><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot green"></div><div class="item-content"><div class="item-title" contenteditable="false">Bugfixes — prepaid handling</div></div></div></div></div></div>
+      <div class="col-panel"><div class="group-label"><h3>In Progress</h3><span class="badge badge-inprogress">WIP</span></div><div class="item-list" id="resp-i"><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">New backend flow shadowing in Prod</div></div></div></div><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">Migrate blocklist job</div></div></div></div></div></div>
+      <div class="col-panel"><div class="group-label"><h3>In Planning</h3><span class="badge badge-planning">Planned</span></div><div class="item-list" id="resp-p"><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot"></div><div class="item-content"><div class="item-title" contenteditable="false">Lynx reservation viewer</div></div></div></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- S9 -->
+<section id="s9">
+  <div class="section-toolbar">
+    <span class="tb-label">09 — AI Taskforce</span>
+    <button class="tb-btn add" onclick="addItem('ai-i','inprogress')">+ In Progress</button>
+  </div>
+  <div class="section-header">
+    <div><div class="section-num">09</div><div class="section-title" contenteditable="false">AI Taskforce Update</div></div>
+    <div class="section-meta"><span class="presenter" contenteditable="false">Stefan</span><span class="duration" contenteditable="false">3 min</span></div>
+    <span class="edit-indicator">✏️ being edited</span>
+  </div>
+  <div class="section-body">
+    <div class="highlight-panel"><div class="hp-title" contenteditable="false">🚀 ChatGPT App Launched!</div><div class="hp-sub" contenteditable="false">Car selection, time selection, and checkout steps now available within <strong>WhatsApp</strong>.</div><div style="margin-top:10px"><span class="badge badge-released">Achievement</span></div></div>
+    <div class="content-group"><div class="group-label"><h3>In Progress</h3><span class="badge badge-inprogress">Building</span></div><div class="item-list" id="ai-i"><div class="item-row"><button class="del-btn" onclick="delEl(this,'item-row')">×</button><div class="item-left"><div class="item-dot orange"></div><div class="item-content"><div class="item-title" contenteditable="false">Web Chatbot</div><div class="item-sub" contenteditable="false">Bringing the AI booking experience to the web</div></div></div><div class="item-right"><span class="badge badge-inprogress" data-cycle onclick="cycleBadge(this)">In Progress</span></div></div></div></div>
+  </div>
+</section>
+
+<!-- S10 -->
+<section id="s10">
+  <div class="section-header">
+    <div><div class="section-num">10</div><div class="section-title" contenteditable="false">Q&amp;A</div></div>
+    <span class="edit-indicator">✏️ being edited</span>
+  </div>
+  <div class="section-body">
+    <div class="qa-section">
+      <div class="qa-emoji">🙋</div>
+      <div class="qa-title" contenteditable="false">Questions &amp; Discussion</div>
+      <div class="qa-sub" contenteditable="false">Join the live Q&amp;A via Slido</div>
+      <a href="https://slido.com" target="_blank" rel="noopener" class="qa-link">Open Slido →</a>
+    </div>
+  </div>
+</section>
+
+</main>
+<footer><strong>SIXT</strong> Product &amp; Engineering Connect — March 2026 &nbsp;·&nbsp; Confidential &amp; Internal</footer>
+<div id="toast"></div>
+
+<script>
+// ── FIREBASE CONFIG ──
+var firebaseConfig = {
+  apiKey: "AIzaSyDahVWDbdBOpPtDdZaVq9fruwkk3f8Cusw",
+  authDomain: "pe-connect-27m.firebaseapp.com",
+  databaseURL: "https://pe-connect-27m-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "pe-connect-27m",
+  storageBucket: "pe-connect-27m.firebasestorage.app",
+  messagingSenderId: "764965482417",
+  appId: "1:764965482417:web:505ff815017ed79eff1790"
+};
+
+firebase.initializeApp(firebaseConfig);
+var db = firebase.database();
+
+// ── PRESENCE ──
+var userId = 'u_' + Math.random().toString(36).substr(2, 8);
+var myPresence = db.ref('presence/' + userId);
+
+db.ref('.info/connected').on('value', function(snap) {
+  if (snap.val() === true) {
+    myPresence.onDisconnect().remove();
+    myPresence.set({ online: true, editing: null });
+    setStatus('green', '🟢 Connected');
+  } else {
+    setStatus('red', 'Reconnecting…');
+  }
+});
+
+// Count online users
+db.ref('presence').on('value', function(snap) {
+  var n = snap.numChildren();
+  document.getElementById('online-count').textContent = n + ' online';
+});
+
+// Show which section others are editing
+db.ref('presence').on('child_changed', function(snap) {
+  if (snap.key === userId) return;
+  var data = snap.val();
+  updateRemoteEditIndicator(data ? data.editing : null, snap.key);
+});
+db.ref('presence').on('child_removed', function(snap) {
+  updateRemoteEditIndicator(null, snap.key);
+});
+
+var remoteEditors = {}; // { sectionId: [userId, ...] }
+function updateRemoteEditIndicator(sectionId, uid) {
+  // Remove uid from previous section
+  Object.keys(remoteEditors).forEach(function(sid) {
+    remoteEditors[sid] = remoteEditors[sid].filter(function(u){ return u !== uid; });
+  });
+  // Add to new section
+  if (sectionId) {
+    if (!remoteEditors[sectionId]) remoteEditors[sectionId] = [];
+    remoteEditors[sectionId].push(uid);
+  }
+  // Update UI
+  document.querySelectorAll('section[id]').forEach(function(sec) {
+    var sid = sec.id;
+    var editors = (remoteEditors[sid] || []).filter(function(u){ return u !== userId; });
+    sec.classList.toggle('being-edited', editors.length > 0);
+  });
+}
+
+function setStatus(color, text) {
+  var dot = document.getElementById('status-dot');
+  var txt = document.getElementById('status-text');
+  dot.className = 'status-dot ' + color;
+  txt.textContent = text;
+}
+
+// ── SYNC ──
+var currentSection = null;
+var saveTimers = {};
+
+// Track which section user is editing
+document.addEventListener('focusin', function(e) {
+  var sec = e.target.closest('section[id]');
+  if (sec && document.body.classList.contains('editing')) {
+    currentSection = sec.id;
+    myPresence.update({ editing: sec.id });
+  }
+});
+document.addEventListener('focusout', function(e) {
+  var sec = e.target.closest('section[id]');
+  if (sec) {
+    scheduleSave(sec.id);
+    currentSection = null;
+    myPresence.update({ editing: null });
+  }
+});
+document.addEventListener('input', function(e) {
+  var sec = e.target.closest('section[id]');
+  if (sec) scheduleSave(sec.id);
+});
+
+function scheduleSave(sectionId) {
+  clearTimeout(saveTimers[sectionId]);
+  saveTimers[sectionId] = setTimeout(function(){ saveSection(sectionId); }, 600);
+}
+
+function saveSection(sectionId) {
+  var sec = document.getElementById(sectionId);
+  if (!sec) return;
+  db.ref('sections/' + sectionId).set({
+    html: sec.querySelector('.section-body').innerHTML,
+    ts: firebase.database.ServerValue.TIMESTAMP
+  });
+}
+
+// Load initial state then listen
+setStatus('orange', 'Loading…');
+db.ref('sections').once('value', function(snap) {
+  var data = snap.val();
+  if (data) {
+    Object.keys(data).forEach(function(id) {
+      var sec = document.getElementById(id);
+      if (sec && data[id] && data[id].html) {
+        sec.querySelector('.section-body').innerHTML = data[id].html;
+      }
+    });
+  }
+  setStatus('green', '🟢 Connected');
+  // Listen for remote changes after initial load
+  db.ref('sections').on('child_changed', function(snap) {
+    var id = snap.key;
+    if (id === currentSection) return; // Don't overwrite while editing
+    var sec = document.getElementById(id);
+    if (sec && snap.val() && snap.val().html) {
+      sec.querySelector('.section-body').innerHTML = snap.val().html;
+      // Re-apply edit mode CE if active
+      if (document.body.classList.contains('editing')) {
+        sec.querySelectorAll('[contenteditable]').forEach(function(el){
+          el.contentEditable = 'true';
+        });
+      }
+      showToast('🔄 Section updated by a teammate');
+    }
+  });
+});
+
+// ── EDIT MODE ──
+document.getElementById('btn-edit').addEventListener('click', function() {
+  var isEditing = document.body.classList.toggle('editing');
+  this.textContent = isEditing ? '✅ Done' : '✏️ Edit';
+  this.classList.toggle('active', isEditing);
+  document.getElementById('edit-banner').classList.toggle('on', isEditing);
+  document.querySelectorAll('[contenteditable]').forEach(function(el) {
+    el.contentEditable = isEditing ? 'true' : 'false';
+  });
+  if (!isEditing) {
+    // Save all sections on exit
+    document.querySelectorAll('section[id]').forEach(function(sec) {
+      saveSection(sec.id);
+    });
+    myPresence.update({ editing: null });
+    showToast('✅ Changes saved and synced to everyone!');
+  }
+});
+
+// ── BADGE CYCLE ──
+var STATES = ['released','inprogress','coming','planning','wrapped'];
+var LABELS = {released:'Released',inprogress:'In Progress',coming:'Coming Up',planning:'Planning',wrapped:'To Release'};
+function cycleBadge(el) {
+  if (!document.body.classList.contains('editing')) return;
+  var cur = STATES.find(function(s){ return el.classList.contains('badge-'+s); }) || 'released';
+  var next = STATES[(STATES.indexOf(cur)+1) % STATES.length];
+  el.className = el.className.replace(/badge-\S+/g, '') + ' badge badge-' + next;
+  // Update text node
+  el.childNodes.forEach(function(n){ if(n.nodeType===3 && n.textContent.trim()) n.textContent = LABELS[next]; });
+  var sec = el.closest('section[id]');
+  if (sec) scheduleSave(sec.id);
+}
+
+// ── DELETE ──
+function delEl(btn, cls) {
+  var el = btn;
+  while (el && !el.classList.contains(cls)) el = el.parentElement;
+  if (el) {
+    var sec = el.closest('section[id]');
+    el.remove();
+    if (sec) scheduleSave(sec.id);
+  }
+}
+
+// ── ADD ITEM ──
+var DOTCOL = {released:'green',inprogress:'orange',coming:'blue',planning:''};
+function makeItem(title, sub, badge) {
+  var dc = DOTCOL[badge] || '';
+  var isE = document.body.classList.contains('editing');
+  var bdg = badge ? '<div class="item-right"><span class="badge badge-'+badge+'" data-cycle onclick="cycleBadge(this)">'+LABELS[badge]+'</span></div>' : '';
+  var div = document.createElement('div');
+  div.className = 'item-row';
+  div.innerHTML =
+    '<button class="del-btn" onclick="delEl(this,\'item-row\')">×</button>'+
+    '<div class="item-left"><div class="item-dot '+dc+'"></div>'+
+    '<div class="item-content">'+
+      '<div class="item-title" contenteditable="'+isE+'">'+(title||'New item — click to edit')+'</div>'+
+      '<div class="item-sub" contenteditable="'+isE+'">'+(sub||'')+'</div>'+
+    '</div></div>'+bdg;
+  return div;
+}
+function addItem(listId, badge) {
+  var list = document.getElementById(listId);
+  if (!list) return;
+  var row = makeItem('', '', badge);
+  list.appendChild(row);
+  var t = row.querySelector('.item-title');
+  if (t) { t.focus(); selectAll(t); }
+  var sec = list.closest('section[id]');
+  if (sec) scheduleSave(sec.id);
+}
+function addAnnouncement(listId) {
+  var list = document.getElementById(listId);
+  if (!list) return;
+  var isE = document.body.classList.contains('editing');
+  var div = document.createElement('div');
+  div.className = 'announcement';
+  div.innerHTML =
+    '<button class="del-btn" onclick="delEl(this,\'announcement\')">×</button>'+
+    '<div class="ann-icon" contenteditable="'+isE+'">📌</div>'+
+    '<div><div class="ann-title" contenteditable="'+isE+'">New announcement</div>'+
+    '<div class="ann-detail" contenteditable="'+isE+'">Add detail here</div></div>';
+  list.appendChild(div);
+  div.querySelector('.ann-title').focus();
+  var sec = list.closest('section[id]');
+  if (sec) scheduleSave(sec.id);
+}
+function addQuestion(listId) {
+  var list = document.getElementById(listId);
+  if (!list) return;
+  var isE = document.body.classList.contains('editing');
+  var div = document.createElement('div');
+  div.className = 'question-bubble';
+  div.innerHTML =
+    '<button class="del-btn" onclick="delEl(this,\'question-bubble\')">×</button>'+
+    '<span class="q-icon">?</span>'+
+    '<span contenteditable="'+isE+'">New question — click to edit</span>';
+  list.appendChild(div);
+  div.querySelector('span[contenteditable]').focus();
+  var sec = list.closest('section[id]');
+  if (sec) scheduleSave(sec.id);
+}
+
+function selectAll(el) {
+  var r = document.createRange(); r.selectNodeContents(el);
+  var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+
+// ── TOAST ──
+var toastTimer;
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 3000);
+}
+
+// ── ANIMATIONS ──
+var obs = new IntersectionObserver(function(entries){
+  entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('visible'); obs.unobserve(e.target); }});
+},{threshold:0.06});
+document.querySelectorAll('section').forEach(function(s){ obs.observe(s); });
+
+// ── ACTIVE NAV ──
+var secs = Array.from(document.querySelectorAll('section[id]'));
+var navLinks = Array.from(document.querySelectorAll('nav a[href^="#"]'));
+window.addEventListener('scroll', function(){
+  var y = window.scrollY, cur = '';
+  secs.forEach(function(s){ if(y >= s.offsetTop - 80) cur = s.id; });
+  navLinks.forEach(function(a){ a.classList.toggle('active', a.getAttribute('href') === '#'+cur); });
+},{passive:true});
+</script>
+</body>
+</html>
