@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SIXT P&E Connect — March 2026 · Live</title>
 
+<!-- DOMPurify for XSS sanitization -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js"></script>
 <!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -192,6 +194,38 @@ footer strong{color:var(--orange)}
 </style>
 </head>
 <body>
+
+<!-- ── PASSWORD GATE ── -->
+<div id="gate" style="position:fixed;inset:0;z-index:9999;background:#0D0D0D;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div style="font-size:13px;font-weight:800;color:#FF5F00;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">SIXT P&amp;E Connect · March 2026</div>
+  <div style="color:#AAAAAA;font-size:13px;margin-bottom:4px">Enter password to continue</div>
+  <input id="gate-pw" type="password" placeholder="Password" style="background:#171717;border:1px solid rgba(255,95,0,.3);border-radius:8px;color:#F5F5F5;font-size:15px;padding:10px 16px;outline:none;width:260px;text-align:center" onkeydown="if(event.key==='Enter')gateCheck()">
+  <button onclick="gateCheck()" style="background:#FF5F00;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;padding:10px 28px;cursor:pointer;letter-spacing:.04em">ENTER</button>
+  <div id="gate-err" style="color:#EF4444;font-size:12px;min-height:16px"></div>
+</div>
+<script>
+var GATE_HASH = '167e4d8b00a099a66454a2c2ffc10c42ba93438cb73b5e27a81799f76a689ba1';
+function gateCheck() {
+  var pw = document.getElementById('gate-pw').value;
+  crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw)).then(function(buf) {
+    var hash = Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0')}).join('');
+    if (hash === GATE_HASH) {
+      sessionStorage.setItem('unlocked','1');
+      document.getElementById('gate').style.display = 'none';
+    } else {
+      document.getElementById('gate-err').textContent = 'Incorrect password. Try again.';
+      document.getElementById('gate-pw').value = '';
+      document.getElementById('gate-pw').focus();
+    }
+  });
+}
+if (sessionStorage.getItem('unlocked') === '1') {
+  document.addEventListener('DOMContentLoaded', function() {
+    var g = document.getElementById('gate');
+    if (g) g.style.display = 'none';
+  });
+}
+</script>
 
 <nav>
   <span class="nav-brand">SIXT P&amp;E</span>
@@ -534,7 +568,7 @@ firebase.initializeApp(firebaseConfig);
 var db = firebase.database();
 
 // ── PRESENCE ──
-var userId = 'u_' + Math.random().toString(36).substr(2, 8);
+var userId = 'u_' + crypto.randomUUID().replace(/-/g,'').substr(0,8);
 var myPresence = db.ref('presence/' + userId);
 
 db.ref('.info/connected').on('value', function(snap) {
@@ -636,7 +670,7 @@ db.ref('sections').once('value', function(snap) {
     Object.keys(data).forEach(function(id) {
       var sec = document.getElementById(id);
       if (sec && data[id] && data[id].html) {
-        sec.querySelector('.section-body').innerHTML = data[id].html;
+        sec.querySelector('.section-body').innerHTML = DOMPurify.sanitize(data[id].html);
       }
     });
   }
@@ -647,7 +681,7 @@ db.ref('sections').once('value', function(snap) {
     if (id === currentSection) return; // Don't overwrite while editing
     var sec = document.getElementById(id);
     if (sec && snap.val() && snap.val().html) {
-      sec.querySelector('.section-body').innerHTML = snap.val().html;
+      sec.querySelector('.section-body').innerHTML = DOMPurify.sanitize(snap.val().html);
       // Re-apply edit mode CE if active
       if (document.body.classList.contains('editing')) {
         sec.querySelectorAll('[contenteditable]').forEach(function(el){
