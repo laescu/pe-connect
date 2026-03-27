@@ -253,7 +253,7 @@ if (sessionStorage.getItem('unlocked') === '1') {
   <a href="#s9">AI</a>
   <a href="#s10">Q&amp;A</a>
   <div class="nav-spacer"></div>
-  <button class="nav-btn" id="btn-edit">✏️ Edit</button>
+
   <div class="status-pill">
     <span class="status-dot orange" id="status-dot"></span>
     <span id="status-text">Connecting…</span>
@@ -264,9 +264,6 @@ if (sessionStorage.getItem('unlocked') === '1') {
   </div>
 </nav>
 
-<div id="edit-banner">
-  ✏️ <strong>Edit Mode ON</strong> — click any text to edit &nbsp;·&nbsp; use <strong>+ Add</strong> buttons to add items &nbsp;·&nbsp; click <strong>🔴 ×</strong> to delete &nbsp;·&nbsp; click a <strong>badge ↻</strong> to change status &nbsp;·&nbsp; <strong>changes sync live to everyone</strong>
-</div>
 
 <div class="hero">
   <div class="hero-label">Monthly Connect — <span id="edition-label">March 2026</span></div>
@@ -748,24 +745,6 @@ function saveSection(sectionId) {
 // Load initial edition
 loadEdition(currentEdition);
 
-// ── EDIT MODE ──
-document.getElementById('btn-edit').addEventListener('click', function() {
-  var isEditing = document.body.classList.toggle('editing');
-  this.textContent = isEditing ? '✅ Done' : '✏️ Edit';
-  this.classList.toggle('active', isEditing);
-  document.getElementById('edit-banner').classList.toggle('on', isEditing);
-  document.querySelectorAll('[contenteditable]').forEach(function(el) {
-    el.contentEditable = isEditing ? 'true' : 'false';
-  });
-  if (!isEditing) {
-    // Save all sections on exit
-    document.querySelectorAll('section[id]').forEach(function(sec) {
-      saveSection(sec.id);
-    });
-    myPresence.update({ editing: null });
-    showToast('✅ Changes saved and synced to everyone!');
-  }
-});
 
 // ── BADGE CYCLE ──
 var STATES = ['released','inprogress','coming','planning','wrapped'];
