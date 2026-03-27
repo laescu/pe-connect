@@ -106,6 +106,12 @@ body.editing .section-toolbar{display:flex}
 .badge-coming{background:var(--blue-dim);color:var(--blue);border-color:var(--blue-b)}.badge-coming::before{background:var(--blue)}
 .badge-planning{background:var(--gray-dim);color:var(--gray);border-color:var(--gray-b)}.badge-planning::before{background:var(--gray)}
 .badge-wrapped{background:var(--blue-dim);color:#60A5FA;border-color:rgba(96,165,250,.3)}.badge-wrapped::before{background:#60A5FA}
+#img-popup-overlay{display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.8);align-items:center;justify-content:center}
+#img-popup-overlay.open{display:flex}
+#img-popup-box{position:relative;max-width:92vw;max-height:88vh;background:#1a1a1a;border-radius:12px;padding:16px;overflow:auto}
+#img-popup-close{position:absolute;top:8px;right:10px;background:none;border:none;color:#fff;font-size:20px;cursor:pointer;z-index:1;line-height:1}
+#img-popup-img{display:block;max-width:100%;border-radius:8px}
+.info-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#3B82F6;color:#fff;font-size:10px;font-weight:700;cursor:pointer;margin-left:6px;flex-shrink:0;user-select:none;vertical-align:middle}
 body.editing .badge[data-cycle]{cursor:pointer}
 body.editing .badge[data-cycle]::after{content:'↻';margin-left:3px;font-size:9px;opacity:.7}
 
@@ -858,6 +864,35 @@ window.addEventListener('scroll', function(){
   secs.forEach(function(s){ if(y >= s.offsetTop - 80) cur = s.id; });
   navLinks.forEach(function(a){ a.classList.toggle('active', a.getAttribute('href') === '#'+cur); });
 },{passive:true});
+</script>
+
+<!-- ── IMAGE POPUP OVERLAY ── -->
+<div id="img-popup-overlay">
+  <div id="img-popup-box">
+    <button id="img-popup-close">✕</button>
+    <img id="img-popup-img" src="" alt="Preview">
+  </div>
+</div>
+
+<script>
+// Image popup — event delegation (DOMPurify strips onclick, so we delegate from document)
+document.addEventListener('click', function(e) {
+  var icon = e.target.closest('[data-popup-img]');
+  if (icon) {
+    document.getElementById('img-popup-img').src = icon.dataset.popupImg;
+    document.getElementById('img-popup-overlay').classList.add('open');
+  }
+});
+document.getElementById('img-popup-close').addEventListener('click', function() {
+  document.getElementById('img-popup-overlay').classList.remove('open');
+  document.getElementById('img-popup-img').src = '';
+});
+document.getElementById('img-popup-overlay').addEventListener('click', function(e) {
+  if (e.target === this) {
+    this.classList.remove('open');
+    document.getElementById('img-popup-img').src = '';
+  }
+});
 </script>
 </body>
 </html>
