@@ -672,7 +672,7 @@ function loadEdition(editionId) {
       var id = sec.id;
       var body = sec.querySelector('.section-body');
       if (data[id] && data[id].html) {
-        body.innerHTML = DOMPurify.sanitize(data[id].html);
+        body.innerHTML = DOMPurify.sanitize(data[id].html, {ADD_ATTR:['data-popup-img']});
       } else {
         body.innerHTML = '<div style="color:var(--t3);font-size:13px;padding:12px 0">No content yet for this edition.</div>';
       }
@@ -692,7 +692,7 @@ function attachSectionsListener() {
     if (id === currentSection) return;
     var sec = document.getElementById(id);
     if (sec && snap.val() && snap.val().html) {
-      sec.querySelector('.section-body').innerHTML = DOMPurify.sanitize(snap.val().html);
+      sec.querySelector('.section-body').innerHTML = DOMPurify.sanitize(snap.val().html, {ADD_ATTR:['data-popup-img']});
       if (document.body.classList.contains('editing')) {
         sec.querySelectorAll('[contenteditable]').forEach(function(el){ el.contentEditable = 'true'; });
       }
