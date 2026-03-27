@@ -41,6 +41,12 @@ nav a.active{color:var(--orange);background:var(--orange-dim)}
 #btn-edit{background:var(--orange-dim);color:var(--orange);border:1px solid var(--orange-b)}
 #btn-edit:hover,#btn-edit.active{background:var(--orange);color:#fff}
 
+/* ── EDITION TABS ── */
+.edition-tabs{display:flex;gap:5px;margin-right:8px;flex-shrink:0}
+.edition-tab{background:var(--panel);border:1px solid rgba(255,255,255,.1);color:var(--t3);border-radius:var(--pill);padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer;transition:all .18s;white-space:nowrap}
+.edition-tab:hover{color:var(--t2);border-color:rgba(255,255,255,.2)}
+.edition-tab.active{background:var(--orange);color:#fff;border-color:var(--orange)}
+
 /* ── STATUS PILL ── */
 .status-pill{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--pill);border:1px solid rgba(255,255,255,.08);background:var(--panel);color:var(--t3);flex-shrink:0;margin-left:4px}
 .status-dot{width:7px;height:7px;border-radius:50%;background:var(--t3);flex-shrink:0;transition:background .3s}
@@ -232,6 +238,10 @@ if (sessionStorage.getItem('unlocked') === '1') {
 
 <nav>
   <span class="nav-brand">SIXT P&amp;E</span>
+  <div class="edition-tabs">
+    <button class="edition-tab active" data-edition="mar2026">Mar 2026</button>
+    <button class="edition-tab" data-edition="apr2026">Apr 2026</button>
+  </div>
   <a href="#s1">Updates</a>
   <a href="#s2">WET</a>
   <a href="#s3">SORT</a>
@@ -259,7 +269,7 @@ if (sessionStorage.getItem('unlocked') === '1') {
 </div>
 
 <div class="hero">
-  <div class="hero-label">Monthly Connect — March 2026</div>
+  <div class="hero-label">Monthly Connect — <span id="edition-label">March 2026</span></div>
   <h1>Product &amp; <span>Engineering</span> Connect</h1>
   <div class="hero-sub">10 updates &nbsp;·&nbsp; 7 teams &nbsp;·&nbsp; ~38 minutes</div>
   <div class="hero-live"><span class="live-dot"></span> Live — edits sync to everyone in real time</div>
@@ -626,6 +636,76 @@ function setStatus(color, text) {
   txt.textContent = text;
 }
 
+// ── EDITIONS ──
+var currentEdition = 'mar2026';
+var EDITION_LABELS = { mar2026: 'March 2026', apr2026: 'April 2026' };
+var sectionsListener = null;
+
+function loadEdition(editionId) {
+  // Detach previous real-time listener
+  if (sectionsListener) {
+    db.ref('editions/' + currentEdition + '/sections').off('child_changed', sectionsListener);
+    sectionsListener = null;
+  }
+  currentEdition = editionId;
+  // Update edition tabs UI
+  document.querySelectorAll('.edition-tab').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.edition === editionId);
+  });
+  // Update hero label
+  var lbl = document.getElementById('edition-label');
+  if (lbl) lbl.textContent = EDITION_LABELS[editionId] || editionId;
+  // Update page title
+  document.title = 'SIXT P&E Connect — ' + (EDITION_LABELS[editionId] || editionId) + ' · Live';
+  // Clear all section bodies while loading
+  document.querySelectorAll('section[id] .section-body').forEach(function(body) {
+    body.innerHTML = '<div style="color:var(--t3);font-size:13px;padding:12px 0">Loading…</div>';
+  });
+  setStatus('orange', 'Loading…');
+  // Fetch new edition data
+  db.ref('editions/' + editionId + '/sections').once('value', function(snap) {
+    var data = snap.val() || {};
+    document.querySelectorAll('section[id]').forEach(function(sec) {
+      var id = sec.id;
+      var body = sec.querySelector('.section-body');
+      if (data[id] && data[id].html) {
+        body.innerHTML = DOMPurify.sanitize(data[id].html);
+      } else {
+        body.innerHTML = '<div style="color:var(--t3);font-size:13px;padding:12px 0">No content yet for this edition.</div>';
+      }
+      // Re-apply edit mode if active
+      if (document.body.classList.contains('editing')) {
+        sec.querySelectorAll('[contenteditable]').forEach(function(el){ el.contentEditable = 'true'; });
+      }
+    });
+    setStatus('green', '🟢 Connected');
+    attachSectionsListener();
+  });
+}
+
+function attachSectionsListener() {
+  sectionsListener = function(snap) {
+    var id = snap.key;
+    if (id === currentSection) return;
+    var sec = document.getElementById(id);
+    if (sec && snap.val() && snap.val().html) {
+      sec.querySelector('.section-body').innerHTML = DOMPurify.sanitize(snap.val().html);
+      if (document.body.classList.contains('editing')) {
+        sec.querySelectorAll('[contenteditable]').forEach(function(el){ el.contentEditable = 'true'; });
+      }
+      showToast('🔄 Section updated by a teammate');
+    }
+  };
+  db.ref('editions/' + currentEdition + '/sections').on('child_changed', sectionsListener);
+}
+
+// Edition tab click handler
+document.querySelectorAll('.edition-tab').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    if (btn.dataset.edition !== currentEdition) loadEdition(btn.dataset.edition);
+  });
+});
+
 // ── SYNC ──
 var currentSection = null;
 var saveTimers = {};
@@ -659,42 +739,14 @@ function scheduleSave(sectionId) {
 function saveSection(sectionId) {
   var sec = document.getElementById(sectionId);
   if (!sec) return;
-  db.ref('sections/' + sectionId).set({
+  db.ref('editions/' + currentEdition + '/sections/' + sectionId).set({
     html: sec.querySelector('.section-body').innerHTML,
     ts: firebase.database.ServerValue.TIMESTAMP
   });
 }
 
-// Load initial state then listen
-setStatus('orange', 'Loading…');
-db.ref('sections').once('value', function(snap) {
-  var data = snap.val();
-  if (data) {
-    Object.keys(data).forEach(function(id) {
-      var sec = document.getElementById(id);
-      if (sec && data[id] && data[id].html) {
-        sec.querySelector('.section-body').innerHTML = DOMPurify.sanitize(data[id].html);
-      }
-    });
-  }
-  setStatus('green', '🟢 Connected');
-  // Listen for remote changes after initial load
-  db.ref('sections').on('child_changed', function(snap) {
-    var id = snap.key;
-    if (id === currentSection) return; // Don't overwrite while editing
-    var sec = document.getElementById(id);
-    if (sec && snap.val() && snap.val().html) {
-      sec.querySelector('.section-body').innerHTML = DOMPurify.sanitize(snap.val().html);
-      // Re-apply edit mode CE if active
-      if (document.body.classList.contains('editing')) {
-        sec.querySelectorAll('[contenteditable]').forEach(function(el){
-          el.contentEditable = 'true';
-        });
-      }
-      showToast('🔄 Section updated by a teammate');
-    }
-  });
-});
+// Load initial edition
+loadEdition(currentEdition);
 
 // ── EDIT MODE ──
 document.getElementById('btn-edit').addEventListener('click', function() {
