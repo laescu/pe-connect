@@ -47,6 +47,12 @@ nav a.active{color:var(--orange);background:var(--orange-dim)}
 .edition-tab:hover{color:var(--t2);border-color:rgba(255,255,255,.2)}
 .edition-tab.active{background:var(--orange);color:#fff;border-color:var(--orange)}
 
+/* ── MEETING TABS ── */
+.meeting-tabs{display:flex;gap:5px;margin-right:10px;flex-shrink:0;border-right:1px solid rgba(255,255,255,.1);padding-right:10px}
+.meeting-tab{background:var(--panel);border:1px solid rgba(255,255,255,.1);color:var(--t3);border-radius:var(--pill);padding:4px 13px;font-size:11px;font-weight:700;cursor:pointer;transition:all .18s;white-space:nowrap}
+.meeting-tab:hover{color:var(--t2);border-color:rgba(255,95,0,.3)}
+.meeting-tab.active{background:var(--orange);color:#fff;border-color:var(--orange)}
+
 /* ── STATUS PILL ── */
 .status-pill{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--pill);border:1px solid rgba(255,255,255,.08);background:var(--panel);color:var(--t3);flex-shrink:0;margin-left:4px}
 .status-dot{width:7px;height:7px;border-radius:50%;background:var(--t3);flex-shrink:0;transition:background .3s}
@@ -244,6 +250,10 @@ if (sessionStorage.getItem('unlocked') === '1') {
 
 <nav>
   <span class="nav-brand">SIXT P&amp;E</span>
+  <div class="meeting-tabs">
+    <button class="meeting-tab active" data-meeting="pe-connect">P&amp;E Connect</button>
+    <button class="meeting-tab" data-meeting="monthly-product">Monthly Product</button>
+  </div>
   <div class="edition-tabs">
     <button class="edition-tab active" data-edition="mar2026">Mar 2026</button>
     <button class="edition-tab" data-edition="apr2026">Apr 2026</button>
@@ -273,7 +283,7 @@ if (sessionStorage.getItem('unlocked') === '1') {
 
 <div class="hero">
   <div class="hero-label">Monthly Connect — <span id="edition-label">March 2026</span></div>
-  <h1>Product &amp; <span>Engineering</span> Connect</h1>
+  <h1 id="hero-title">Product &amp; <span>Engineering</span> Connect</h1>
   <div class="hero-sub">10 updates &nbsp;·&nbsp; 7 teams &nbsp;·&nbsp; ~38 minutes</div>
   <div class="hero-live"><span class="live-dot"></span> Live — edits sync to everyone in real time</div>
 </div>
@@ -639,16 +649,36 @@ function setStatus(color, text) {
   txt.textContent = text;
 }
 
+// ── MEETINGS ──
+var currentMeeting = 'pe-connect';
+var MEETING_LABELS = { 'pe-connect': 'P&E Connect', 'monthly-product': 'Monthly Product' };
+var MEETING_TITLES = {
+  'pe-connect': 'Product &amp; <span>Engineering</span> Connect',
+  'monthly-product': 'Monthly <span>Product</span>'
+};
+
 // ── EDITIONS ──
 var currentEdition = 'mar2026';
 var EDITION_LABELS = { mar2026: 'March 2026', apr2026: 'April 2026' };
 var sectionsListener = null;
+var sectionsListenerPath = null;
+
+function loadMeeting(meetingId) {
+  currentMeeting = meetingId;
+  document.querySelectorAll('.meeting-tab').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.meeting === meetingId);
+  });
+  var h1 = document.getElementById('hero-title');
+  if (h1) h1.innerHTML = MEETING_TITLES[meetingId] || meetingId;
+  loadEdition(currentEdition);
+}
 
 function loadEdition(editionId) {
-  // Detach previous real-time listener
-  if (sectionsListener) {
-    db.ref('editions/' + currentEdition + '/sections').off('child_changed', sectionsListener);
+  // Detach previous real-time listener using stored path
+  if (sectionsListener && sectionsListenerPath) {
+    db.ref(sectionsListenerPath).off('child_changed', sectionsListener);
     sectionsListener = null;
+    sectionsListenerPath = null;
   }
   currentEdition = editionId;
   // Update edition tabs UI
@@ -659,14 +689,14 @@ function loadEdition(editionId) {
   var lbl = document.getElementById('edition-label');
   if (lbl) lbl.textContent = EDITION_LABELS[editionId] || editionId;
   // Update page title
-  document.title = 'SIXT P&E Connect — ' + (EDITION_LABELS[editionId] || editionId) + ' · Live';
+  document.title = 'SIXT ' + (MEETING_LABELS[currentMeeting] || currentMeeting) + ' — ' + (EDITION_LABELS[editionId] || editionId) + ' · Live';
   // Clear all section bodies while loading
   document.querySelectorAll('section[id] .section-body').forEach(function(body) {
     body.innerHTML = '<div style="color:var(--t3);font-size:13px;padding:12px 0">Loading…</div>';
   });
   setStatus('orange', 'Loading…');
   // Fetch new edition data
-  db.ref('editions/' + editionId + '/sections').once('value', function(snap) {
+  db.ref('meetings/' + currentMeeting + '/' + editionId + '/sections').once('value', function(snap) {
     var data = snap.val() || {};
     document.querySelectorAll('section[id]').forEach(function(sec) {
       var id = sec.id;
@@ -699,13 +729,21 @@ function attachSectionsListener() {
       showToast('🔄 Section updated by a teammate');
     }
   };
-  db.ref('editions/' + currentEdition + '/sections').on('child_changed', sectionsListener);
+  sectionsListenerPath = 'meetings/' + currentMeeting + '/' + currentEdition + '/sections';
+  db.ref(sectionsListenerPath).on('child_changed', sectionsListener);
 }
 
 // Edition tab click handler
 document.querySelectorAll('.edition-tab').forEach(function(btn) {
   btn.addEventListener('click', function() {
     if (btn.dataset.edition !== currentEdition) loadEdition(btn.dataset.edition);
+  });
+});
+
+// Meeting tab click handler
+document.querySelectorAll('.meeting-tab').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    if (btn.dataset.meeting !== currentMeeting) loadMeeting(btn.dataset.meeting);
   });
 });
 
@@ -742,7 +780,7 @@ function scheduleSave(sectionId) {
 function saveSection(sectionId) {
   var sec = document.getElementById(sectionId);
   if (!sec) return;
-  db.ref('editions/' + currentEdition + '/sections/' + sectionId).set({
+  db.ref('meetings/' + currentMeeting + '/' + currentEdition + '/sections/' + sectionId).set({
     html: sec.querySelector('.section-body').innerHTML,
     ts: firebase.database.ServerValue.TIMESTAMP
   });
